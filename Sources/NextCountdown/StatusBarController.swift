@@ -72,7 +72,17 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
-            Task { @MainActor in self?.popover.performClose(nil) }
+            Task { @MainActor in self?.closeIfClickOutsidePopover() }
+        }
+    }
+
+    private func closeIfClickOutsidePopover() {
+        guard popover.isShown,
+              let window = popover.contentViewController?.view.window else { return }
+        // A status-bar app can receive its own panel clicks through the global
+        // monitor. Only dismiss after a click outside the popover's screen frame.
+        if !window.frame.contains(NSEvent.mouseLocation) {
+            popover.performClose(nil)
         }
     }
 
