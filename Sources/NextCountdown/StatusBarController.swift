@@ -112,14 +112,13 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     private func shortDescription(for event: CalendarEvent) -> String {
-        if let summary = event.statusSummary, !summary.isEmpty {
-            return summary.lowercased() == "ddl" ? "ddl" : String(summary.prefix(2))
-        }
         let title = event.title
         let plainTitle = title.components(separatedBy: "@").first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? title
         let deadlineWords = ["提交", "材料", "截止", "ddl"]
         if deadlineWords.contains(where: { plainTitle.localizedCaseInsensitiveContains($0) }) { return "ddl" }
+        if plainTitle.contains("取") && plainTitle.contains("车") { return "取车" }
+        if plainTitle.contains("还") && plainTitle.contains("车") { return "还车" }
         let summaries: [([String], String)] = [
             (["面试"], "面试"),
             (["研讨", "会议", "开会", "会谈"], "开会"),
@@ -134,6 +133,12 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             entry.0.contains { plainTitle.contains($0) }
         })?.1 {
             return summary
+        }
+        if let summary = event.statusSummary, !summary.isEmpty {
+            // Never allow an ungrounded deadline label to override the title.
+            if summary.lowercased() != "ddl" {
+                return String(summary.prefix(2))
+            }
         }
         // Keep the status item compact even for uncategorised event titles.
         return plainTitle.count > 2 ? String(plainTitle.prefix(2)) : plainTitle
