@@ -3,6 +3,13 @@ import Foundation
 /// A small offline parser for common Chinese scheduling phrases.
 /// Set an OpenAI-compatible endpoint in Settings to use a more capable parser later.
 enum NaturalLanguageParser {
+    static func parsePreferred(_ input: String, now: Date = .now, calendar: Calendar = .current) async throws -> NewEvent {
+        if let localModelEvent = await LocalEventIntelligence.parse(input, now: now, calendar: calendar) {
+            return localModelEvent
+        }
+        return try parse(input, now: now, calendar: calendar)
+    }
+
     static func parse(_ input: String, now: Date = .now, calendar: Calendar = .current) throws -> NewEvent {
         var date = calendar.startOfDay(for: now)
         let isAllDay = input.contains("全天")
@@ -21,7 +28,7 @@ enum NaturalLanguageParser {
         if isAllDay {
             let end = calendar.date(byAdding: .day, value: 1, to: date)!
             let location = location(in: input)
-            return NewEvent(title: cleanedTitle(input, location: location), startDate: date, endDate: end, calendarTitle: nil, location: location, isAllDay: true)
+            return NewEvent(title: cleanedTitle(input, location: location), startDate: date, endDate: end, calendarTitle: nil, location: location, isAllDay: true, statusSummary: nil)
         }
         guard let time = time(in: input) else { throw ParseError.unableToFindTime }
         var components = calendar.dateComponents([.year, .month, .day], from: date)
@@ -33,7 +40,7 @@ enum NaturalLanguageParser {
         let end = calendar.date(byAdding: .minute, value: duration, to: start)!
         let location = location(in: input)
         let title = cleanedTitle(input, location: location)
-        return NewEvent(title: title, startDate: start, endDate: end, calendarTitle: nil, location: location, isAllDay: false)
+        return NewEvent(title: title, startDate: start, endDate: end, calendarTitle: nil, location: location, isAllDay: false, statusSummary: nil)
     }
 
     private static func hasTime(_ text: String) -> Bool { time(in: text) != nil }

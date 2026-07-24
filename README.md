@@ -10,6 +10,7 @@
 - 输入 `明天下午4点在tamagawa开会`，创建标题为 `开会@tamagawa`、地点为 `tamagawa` 的日程。
 - 直接选择 iCloud 中真实的日历（如“日历、工作、个人、家庭”）。
 - 持续时间支持时间点、30 分钟至 4 小时，以及全天。
+- 支持 Apple Intelligence 时，优先在本机提取事件、地点、时间和两字状态栏摘要；不可用时自动回退到规则解析。
 
 ## 运行
 
@@ -21,6 +22,8 @@ swift run
 ```
 
 首次运行请允许访问“日历”。发布版需要作为 `.app` 包运行，并在 `Info.plist` 中声明 `NSCalendarsFullAccessUsageDescription`。
+
+本地模型功能需要支持 Apple Intelligence 的设备、地区和 macOS 26+；应用会在“设置 → 本地智能”显示可用性。
 
 ## 连接日历
 

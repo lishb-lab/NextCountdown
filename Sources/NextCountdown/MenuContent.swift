@@ -152,15 +152,18 @@ struct MenuContent: View {
     }
 
     private func addFromText() {
-        do {
-            var event = try NaturalLanguageParser.parse(isAllDay ? "\(input) 全天" : input)
-            event.calendarTitle = selectedCalendar.isEmpty ? nil : selectedCalendar
-            applyDuration(to: &event)
-            try calendar.create(event)
-            input = ""
-            resultMessage = "已添加：\(event.title)"
-        } catch {
-            resultMessage = error.localizedDescription
+        let command = isAllDay ? "\(input) 全天" : input
+        Task { @MainActor in
+            do {
+                var event = try await NaturalLanguageParser.parsePreferred(command)
+                event.calendarTitle = selectedCalendar.isEmpty ? nil : selectedCalendar
+                applyDuration(to: &event)
+                try calendar.create(event)
+                input = ""
+                resultMessage = "已添加：\(event.title)"
+            } catch {
+                resultMessage = error.localizedDescription
+            }
         }
     }
 

@@ -108,10 +108,14 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             calendar.refresh()
             return
         }
-        button.title = " \(shortDescription(for: event.title)) · \(dateFormatter.string(from: event.startDate)) · \(countdown(remaining))"
+        button.title = " \(shortDescription(for: event)) · \(dateFormatter.string(from: event.startDate)) · \(countdown(remaining))"
     }
 
-    private func shortDescription(for title: String) -> String {
+    private func shortDescription(for event: CalendarEvent) -> String {
+        if let summary = event.statusSummary, !summary.isEmpty {
+            return summary.lowercased() == "ddl" ? "ddl" : String(summary.prefix(2))
+        }
+        let title = event.title
         let plainTitle = title.components(separatedBy: "@").first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? title
         let deadlineWords = ["提交", "材料", "截止", "ddl"]

@@ -7,6 +7,7 @@ struct CalendarEvent: Identifiable, Equatable {
     let endDate: Date
     let calendarName: String
     let isAllDay: Bool
+    let statusSummary: String?
 }
 
 struct NewEvent: Equatable {
@@ -16,6 +17,7 @@ struct NewEvent: Equatable {
     var calendarTitle: String?
     var location: String?
     var isAllDay: Bool
+    var statusSummary: String?
 }
 
 enum CalendarAccessState: Equatable {

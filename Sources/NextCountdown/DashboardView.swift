@@ -69,16 +69,18 @@ struct DashboardView: View {
     }
 
     private func add() {
-        do {
-            let event = try NaturalLanguageParser.parse(isAllDay ? "\(input) 全天" : input)
-            var configuredEvent = event
-            configuredEvent.calendarTitle = selectedCalendar.isEmpty ? nil : selectedCalendar
-            applyDuration(to: &configuredEvent)
-            try calendar.create(configuredEvent)
-            input = ""
-            feedback = "已添加"
-        } catch {
-            feedback = error.localizedDescription
+        let command = isAllDay ? "\(input) 全天" : input
+        Task { @MainActor in
+            do {
+                var event = try await NaturalLanguageParser.parsePreferred(command)
+                event.calendarTitle = selectedCalendar.isEmpty ? nil : selectedCalendar
+                applyDuration(to: &event)
+                try calendar.create(event)
+                input = ""
+                feedback = "已添加"
+            } catch {
+                feedback = error.localizedDescription
+            }
         }
     }
 

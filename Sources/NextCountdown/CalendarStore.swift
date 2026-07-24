@@ -54,7 +54,8 @@ final class CalendarStore: ObservableObject {
                     startDate: event.startDate,
                     endDate: event.endDate,
                     calendarName: event.calendar.title,
-                    isAllDay: event.isAllDay
+                    isAllDay: event.isAllDay,
+                    statusSummary: statusSummary(in: event.notes)
                 )
             }
         currentEvent = events.first { $0.startDate <= now && $0.endDate > now }
@@ -71,6 +72,7 @@ final class CalendarStore: ObservableObject {
         event.isAllDay = newEvent.isAllDay
         event.calendar = iCloudCalendar(named: newEvent.calendarTitle) ?? defaultICloudCalendar() ?? eventStore.defaultCalendarForNewEvents
         event.location = newEvent.location
+        event.notes = newEvent.statusSummary.map { "NextCountdown summary: \($0)" }
         try eventStore.save(event, span: .thisEvent)
         refresh()
     }
@@ -97,5 +99,12 @@ final class CalendarStore: ObservableObject {
 
     private func defaultICloudCalendar() -> EKCalendar? {
         iCloudCalendar(named: "日历") ?? iCloudCalendars().first
+    }
+
+    private func statusSummary(in notes: String?) -> String? {
+        guard let notes,
+              let range = notes.range(of: "NextCountdown summary: ") else { return nil }
+        let summary = notes[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        return summary.isEmpty ? nil : summary
     }
 }

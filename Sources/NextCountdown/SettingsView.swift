@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var calendar: CalendarStore
     @ObservedObject var google: GoogleCalendarClient
+    @State private var localModelStatus = LocalEventIntelligence.availabilityText()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -12,6 +13,15 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("本应用通过 macOS 日历读取和创建日程。")
                     Button("重新请求权限") { Task { await calendar.requestAccessAndRefresh() } }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            GroupBox("本地智能") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(localModelStatus)
+                    Text("可用时会用 Apple 智能在本机提取事件、地点、时间和状态栏两字摘要；不可用时自动使用本地规则。")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("重新检查") { localModelStatus = LocalEventIntelligence.availabilityText() }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
