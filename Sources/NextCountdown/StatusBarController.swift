@@ -116,11 +116,23 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? title
         let deadlineWords = ["提交", "材料", "截止", "ddl"]
         if deadlineWords.contains(where: { plainTitle.localizedCaseInsensitiveContains($0) }) { return "ddl" }
-        let actionKeywords = ["面试", "开会", "会议", "讨论", "汇报", "见面", "会谈", "拜访", "吃饭", "上课", "就诊"]
-        if let action = actionKeywords.first(where: { plainTitle.contains($0) }) {
-            return action == "会议" ? "开会" : action
+        let summaries: [([String], String)] = [
+            (["面试"], "面试"),
+            (["研讨", "会议", "开会", "会谈"], "开会"),
+            (["讨论"], "讨论"),
+            (["汇报"], "汇报"),
+            (["见面", "拜访"], "见面"),
+            (["吃饭", "用餐"], "吃饭"),
+            (["上课", "讲座"], "上课"),
+            (["就诊", "牙医", "医生"], "就诊")
+        ]
+        if let summary = summaries.first(where: { entry in
+            entry.0.contains { plainTitle.contains($0) }
+        })?.1 {
+            return summary
         }
-        return plainTitle.count > 8 ? String(plainTitle.prefix(8)) + "…" : plainTitle
+        // Keep the status item compact even for uncategorised event titles.
+        return plainTitle.count > 2 ? String(plainTitle.prefix(2)) : plainTitle
     }
 
     private func countdown(_ remaining: TimeInterval) -> String {
