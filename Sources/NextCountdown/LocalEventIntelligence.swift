@@ -70,6 +70,29 @@ enum LocalEventIntelligence {
         #endif
     }
 
+    static func summarize(_ eventTitle: String) async -> String? {
+        #if canImport(FoundationModels)
+        guard #available(macOS 26.0, *), case .available = SystemLanguageModel.default.availability else { return nil }
+        do {
+            let session = LanguageModelSession(instructions: """
+                Summarize a Chinese calendar event title into its primary action.
+                Return exactly two Chinese characters, except use the lowercase text ddl only for an explicit deadline.
+                Examples: 取租车 -> 取车; MRI研讨会 -> 开会; 在玉川面试 -> 面试; 提交材料 -> ddl.
+                Do not label a non-deadline event as ddl.
+                """)
+            let response = try await session.respond(
+                to: "Calendar event title: \(eventTitle)",
+                generating: GeneratedSummary.self
+            )
+            return cleanedSummary(response.content.summary)
+        } catch {
+            return nil
+        }
+        #else
+        return nil
+        #endif
+    }
+
     private static func cleanedSummary(_ summary: String) -> String? {
         let cleaned = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return nil }
@@ -100,6 +123,13 @@ private struct GeneratedEvent {
     var isAllDay: Bool
 
     @Guide(description: "Status bar summary: at most two Chinese characters, or ddl for a deadline.")
+    var summary: String
+}
+
+@available(macOS 26.0, *)
+@Generable(description: "A compact status-bar summary for a Chinese calendar event.")
+private struct GeneratedSummary {
+    @Guide(description: "Exactly two Chinese characters for the main action, or ddl only for an explicit deadline.")
     var summary: String
 }
 #endif

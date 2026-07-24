@@ -12,6 +12,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
     private var globalMouseMonitor: Any?
+    private var modelSummaries: [String: String] = [:]
+    private var pendingSummaryIDs = Set<String>()
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_Hans_CN")
@@ -108,11 +110,29 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             calendar.refresh()
             return
         }
-        button.title = " \(shortDescription(for: event)) · \(dateFormatter.string(from: event.startDate)) · \(countdown(remaining))"
+        button.title = " \(summary(for: event)) · \(dateFormatter.string(from: event.startDate)) · \(countdown(remaining))"
+        requestModelSummary(for: event)
     }
 
-    private func shortDescription(for event: CalendarEvent) -> String {
-        let title = event.title
+    private func summary(for event: CalendarEvent) -> String {
+        modelSummaries[event.id] ?? fallbackSummary(for: event.title)
+    }
+
+    private func requestModelSummary(for event: CalendarEvent) {
+        guard modelSummaries[event.id] == nil, !pendingSummaryIDs.contains(event.id) else { return }
+        pendingSummaryIDs.insert(event.id)
+        Task { @MainActor [weak self] in
+            let summary = await LocalEventIntelligence.summarize(event.title)
+            guard let self else { return }
+            self.pendingSummaryIDs.remove(event.id)
+            if let summary, !summary.isEmpty {
+                self.modelSummaries[event.id] = summary
+                self.updateLabel()
+            }
+        }
+    }
+
+    private func fallbackSummary(for title: String) -> String {
         let plainTitle = title.components(separatedBy: "@").first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? title
         let deadlineWords = ["提交", "材料", "截止", "ddl"]
@@ -133,12 +153,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             entry.0.contains { plainTitle.contains($0) }
         })?.1 {
             return summary
-        }
-        if let summary = event.statusSummary, !summary.isEmpty {
-            // Never allow an ungrounded deadline label to override the title.
-            if summary.lowercased() != "ddl" {
-                return String(summary.prefix(2))
-            }
         }
         // Keep the status item compact even for uncategorised event titles.
         return plainTitle.count > 2 ? String(plainTitle.prefix(2)) : plainTitle
