@@ -10,8 +10,21 @@ struct MenuContent: View {
     @State private var selectedCalendar = ""
     @State private var durationMinutes = 60.0
     @State private var isAllDay = false
+    @State private var localModelStatus = LocalEventIntelligence.availabilityText()
 
     var body: some View {
+        Group {
+            if showingSettings {
+                settingsPanel
+            } else {
+                mainPanel
+            }
+        }
+        .padding(16)
+        .frame(width: 360)
+    }
+
+    private var mainPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             Divider()
@@ -26,10 +39,32 @@ struct MenuContent: View {
                 Button("退出") { NSApplication.shared.terminate(nil) }
             }
         }
-        .padding(16)
-        .frame(width: 360)
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(calendar: calendar, google: google)
+    }
+
+    private var settingsPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("设置").font(.headline)
+            GroupBox("日历") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("本应用通过 macOS 日历读取和创建日程。")
+                    Button("重新请求日历权限") { Task { await calendar.requestAccessAndRefresh() } }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            GroupBox("本地智能") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(localModelStatus)
+                    Text("可用时在本机理解短句；不可用时自动使用规则解析。")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("重新检查") { localModelStatus = LocalEventIntelligence.availabilityText() }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            HStack {
+                Spacer()
+                Button("完成") { showingSettings = false }
+                    .keyboardShortcut(.defaultAction)
+            }
         }
     }
 
