@@ -4,8 +4,13 @@ import Foundation
 /// Set an OpenAI-compatible endpoint in Settings to use a more capable parser later.
 enum NaturalLanguageParser {
     static func parsePreferred(_ input: String, now: Date = .now, calendar: Calendar = .current) async throws -> NewEvent {
+        // Calendar dates written explicitly (for example, "9月2日") should never
+        // depend on the language model estimating a day offset. Keep the model
+        // for the title, location and compact summary, but pin its result to the
+        // date the person actually typed.
+        let typedDate = explicitDate(in: input, now: now, calendar: calendar)
         if let localModelEvent = await LocalEventIntelligence.parse(input, now: now, calendar: calendar) {
-            return localModelEvent
+            return typedDate.map { applying(date: $0, to: localModelEvent, calendar: calendar) } ?? localModelEvent
         }
         return try parse(input, now: now, calendar: calendar)
     }
@@ -35,7 +40,11 @@ enum NaturalLanguageParser {
         components.hour = time.hour
         components.minute = time.minute
         guard var start = calendar.date(from: components) else { throw ParseError.unableToFindTime }
-        if start < now && !input.contains("今天") { start = calendar.date(byAdding: .day, value: 1, to: start)! }
+        // Only implicit dates roll forward. An explicit "9月2日" must retain the
+        // date that was typed, even if its time has already passed.
+        if start < now && !input.contains("今天") && explicitDate(in: input, now: now, calendar: calendar) == nil {
+            start = calendar.date(byAdding: .day, value: 1, to: start)!
+        }
         let duration = durationMinutes(in: input) ?? 60
         let end = calendar.date(byAdding: .minute, value: duration, to: start)!
         let location = location(in: input)
@@ -68,7 +77,35 @@ enum NaturalLanguageParser {
         guard let values = captureGroups(pattern: pattern, in: text), let month = Int(values[0]), let day = Int(values[1]) else { return nil }
         var components = calendar.dateComponents([.year], from: now)
         components.month = month; components.day = day
-        return calendar.date(from: components)
+        guard let date = calendar.date(from: components) else { return nil }
+
+        // A month/day earlier than today is normally the next occurrence of that
+        // date. This makes "1月5日" entered in August mean next January.
+        if date < calendar.startOfDay(for: now) {
+            return calendar.date(byAdding: .year, value: 1, to: date)
+        }
+        return date
+    }
+
+    private static func applying(date: Date, to event: NewEvent, calendar: Calendar) -> NewEvent {
+        var corrected = event
+        let day = calendar.startOfDay(for: date)
+        if event.isAllDay {
+            corrected.startDate = day
+            corrected.endDate = calendar.date(byAdding: .day, value: 1, to: day) ?? day
+            return corrected
+        }
+
+        let time = calendar.dateComponents([.hour, .minute, .second], from: event.startDate)
+        var components = calendar.dateComponents([.year, .month, .day], from: day)
+        components.hour = time.hour
+        components.minute = time.minute
+        components.second = time.second
+        let correctedStart = calendar.date(from: components) ?? day
+        let duration = max(0, event.endDate.timeIntervalSince(event.startDate))
+        corrected.startDate = correctedStart
+        corrected.endDate = correctedStart.addingTimeInterval(duration)
+        return corrected
     }
 
     private static func chineseWeekday(in text: String) -> Int? {
