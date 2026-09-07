@@ -11,7 +11,7 @@ struct MenuContent: View {
     @State private var durationMinutes = 60.0
     @State private var isAllDay = false
     @State private var localModelStatus = LocalEventIntelligence.availabilityText()
-    @State private var eventEditor = EventEditorPresenter()
+    @State private var editingEventID: String?
 
     var body: some View {
         Group {
@@ -152,6 +152,17 @@ struct MenuContent: View {
             } else {
                 ForEach(calendar.upcomingEvents.prefix(4)) { event in
                     eventRow(event)
+                    if editingEventID == event.id {
+                        EventEditorView(event: event, calendar: calendar) {
+                            editingEventID = nil
+                        }
+                        .padding(12)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(.quaternary, lineWidth: 1)
+                        }
+                    }
                 }
             }
         }
@@ -167,13 +178,13 @@ struct MenuContent: View {
             Text(event.startDate, format: .dateTime.weekday(.abbreviated).hour().minute())
                 .font(.caption).foregroundStyle(.secondary)
             Button {
-                eventEditor.present(event: event, calendar: calendar)
+                editingEventID = editingEventID == event.id ? nil : event.id
             } label: {
                 Image(systemName: "pencil.circle")
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("修改此事件")
+            .help("展开修改面板")
             Button {
                 delete(event)
             } label: {

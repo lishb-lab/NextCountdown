@@ -1,47 +1,6 @@
-import AppKit
 import SwiftUI
 
-@MainActor
-final class EventEditorPresenter {
-    private var windowController: NSWindowController?
-
-    func present(event: CalendarEvent, calendar: CalendarStore) {
-        windowController?.close()
-        let controller = EventEditorWindowController(event: event, calendar: calendar)
-        windowController = controller
-        controller.showWindow(nil)
-        controller.window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-}
-
-@MainActor
-private final class EventEditorWindowController: NSWindowController {
-    init(event: CalendarEvent, calendar: CalendarStore) {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 390, height: 390),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "修改日程"
-        window.isReleasedWhenClosed = false
-        window.center()
-        super.init(window: window)
-        window.contentViewController = NSHostingController(
-            rootView: EventEditorView(event: event, calendar: calendar) { [weak window] in
-                window?.close()
-            }
-        )
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
-private struct EventEditorView: View {
+struct EventEditorView: View {
     let event: CalendarEvent
     @ObservedObject var calendar: CalendarStore
     let close: () -> Void
@@ -68,51 +27,72 @@ private struct EventEditorView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("修改日程").font(.title3).bold()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("修改日程").font(.headline)
+                Spacer()
+                Button(action: close) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("收起修改面板")
+            }
 
-            Form {
-                TextField("标题", text: $title)
+            fieldRow("标题") {
+                TextField("日程标题", text: $title)
+                    .textFieldStyle(.roundedBorder)
+            }
+            fieldRow("日期") {
                 DatePicker("日期", selection: $date, displayedComponents: .date)
+                    .labelsHidden()
+            }
+            fieldRow("时间") {
                 DatePicker("时间", selection: $time, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
                     .disabled(isAllDay)
+            }
+            fieldRow("分类") {
                 Picker("项目分类", selection: $selectedCalendar) {
                     ForEach(calendarOptions, id: \.self) { title in
                         Text(title).tag(title)
                     }
                 }
-                Toggle("全天", isOn: $isAllDay)
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("持续时间")
-                        Spacer()
-                        Text(isAllDay ? "全天" : durationText)
-                            .foregroundStyle(.secondary)
-                    }
-                    Slider(value: $durationMinutes, in: 0...240, step: 30)
-                        .disabled(isAllDay)
-                    HStack {
-                        Text("时间点").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        Text("4小时").font(.caption).foregroundStyle(.secondary)
-                    }
+                .labelsHidden()
+            }
+            Toggle("全天", isOn: $isAllDay)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("持续时间")
+                    Spacer()
+                    Text(isAllDay ? "全天" : durationText)
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $durationMinutes, in: 0...240, step: 30)
+                    .disabled(isAllDay)
+                HStack {
+                    Text("时间点").font(.caption2).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("4小时").font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
 
             if let errorMessage {
                 Text(errorMessage).font(.caption).foregroundStyle(.red)
             }
 
-            HStack {
-                Spacer()
-                Button("取消", action: close)
-                Button("保存", action: save)
-                    .keyboardShortcut(.defaultAction)
-            }
+            HStack { Spacer(); Button("保存", action: save).keyboardShortcut(.defaultAction) }
         }
-        .padding(20)
-        .frame(width: 390)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func fieldRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(label).frame(width: 32, alignment: .leading)
+            content()
+            Spacer(minLength: 0)
+        }
     }
 
     private var calendarOptions: [String] {
