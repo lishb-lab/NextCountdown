@@ -84,7 +84,14 @@ final class CalendarStore: ObservableObject {
         refresh()
     }
 
-    func updateTitle(of event: CalendarEvent, to title: String) throws {
+    func update(
+        _ event: CalendarEvent,
+        title: String,
+        startDate: Date,
+        endDate: Date,
+        calendarTitle: String,
+        isAllDay: Bool
+    ) throws {
         guard accessState == .granted else {
             throw NSError(domain: "NextCountdown", code: 1, userInfo: [NSLocalizedDescriptionKey: "请先允许访问日历。"])
         }
@@ -96,6 +103,12 @@ final class CalendarStore: ObservableObject {
             throw NSError(domain: "NextCountdown", code: 3, userInfo: [NSLocalizedDescriptionKey: "找不到这个日程，请刷新后再试。"])
         }
         ekEvent.title = cleanedTitle
+        ekEvent.startDate = startDate
+        ekEvent.endDate = endDate
+        ekEvent.isAllDay = isAllDay
+        if let destinationCalendar = iCloudCalendar(named: calendarTitle) {
+            ekEvent.calendar = destinationCalendar
+        }
         try eventStore.save(ekEvent, span: .thisEvent)
         refresh()
     }

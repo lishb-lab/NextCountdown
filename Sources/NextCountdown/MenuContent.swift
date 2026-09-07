@@ -11,8 +11,7 @@ struct MenuContent: View {
     @State private var durationMinutes = 60.0
     @State private var isAllDay = false
     @State private var localModelStatus = LocalEventIntelligence.availabilityText()
-    @State private var editingEventID: String?
-    @State private var editingTitle = ""
+    @State private var eventEditor = EventEditorPresenter()
 
     var body: some View {
         Group {
@@ -161,45 +160,28 @@ struct MenuContent: View {
     private func eventRow(_ event: CalendarEvent) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 1) {
-                if editingEventID == event.id {
-                    TextField("日程内容", text: $editingTitle)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { saveTitle(for: event) }
-                } else {
-                    Text(event.title)
-                        .lineLimit(1)
-                        .contentShape(Rectangle())
-                        .onTapGesture { beginEditing(event) }
-                        .help("点击修改日程内容")
-                }
+                Text(event.title).lineLimit(1)
                 Text(event.calendarName).font(.caption2).foregroundStyle(.secondary)
             }
             Spacer()
-            if editingEventID == event.id {
-                Button { saveTitle(for: event) } label: {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.tint)
-                }
-                .buttonStyle(.plain)
-                .help("保存")
-                Button { cancelEditing() } label: {
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("取消")
-            } else {
-                Text(event.startDate, format: .dateTime.weekday(.abbreviated).hour().minute())
-                    .font(.caption).foregroundStyle(.secondary)
-                Button {
-                    delete(event)
-                } label: {
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("删除此事件")
+            Text(event.startDate, format: .dateTime.weekday(.abbreviated).hour().minute())
+                .font(.caption).foregroundStyle(.secondary)
+            Button {
+                eventEditor.present(event: event, calendar: calendar)
+            } label: {
+                Image(systemName: "pencil.circle")
+                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
+            .help("修改此事件")
+            Button {
+                delete(event)
+            } label: {
+                Image(systemName: "xmark.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("删除此事件")
         }
     }
 
@@ -237,26 +219,6 @@ struct MenuContent: View {
         do {
             try calendar.delete(event)
             resultMessage = "已删除：\(event.title)"
-        } catch {
-            resultMessage = error.localizedDescription
-        }
-    }
-
-    private func beginEditing(_ event: CalendarEvent) {
-        editingEventID = event.id
-        editingTitle = event.title
-    }
-
-    private func cancelEditing() {
-        editingEventID = nil
-        editingTitle = ""
-    }
-
-    private func saveTitle(for event: CalendarEvent) {
-        do {
-            try calendar.updateTitle(of: event, to: editingTitle)
-            resultMessage = "已修改：\(editingTitle.trimmingCharacters(in: .whitespacesAndNewlines))"
-            cancelEditing()
         } catch {
             resultMessage = error.localizedDescription
         }
