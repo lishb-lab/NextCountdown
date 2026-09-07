@@ -84,6 +84,22 @@ final class CalendarStore: ObservableObject {
         refresh()
     }
 
+    func updateTitle(of event: CalendarEvent, to title: String) throws {
+        guard accessState == .granted else {
+            throw NSError(domain: "NextCountdown", code: 1, userInfo: [NSLocalizedDescriptionKey: "请先允许访问日历。"])
+        }
+        let cleanedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTitle.isEmpty else {
+            throw NSError(domain: "NextCountdown", code: 2, userInfo: [NSLocalizedDescriptionKey: "日程内容不能为空。"])
+        }
+        guard let ekEvent = eventStore.event(withIdentifier: event.id) else {
+            throw NSError(domain: "NextCountdown", code: 3, userInfo: [NSLocalizedDescriptionKey: "找不到这个日程，请刷新后再试。"])
+        }
+        ekEvent.title = cleanedTitle
+        try eventStore.save(ekEvent, span: .thisEvent)
+        refresh()
+    }
+
     private func iCloudCalendars() -> [EKCalendar] {
         eventStore.calendars(for: .event).filter {
             $0.allowsContentModifications &&
